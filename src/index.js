@@ -1,5 +1,6 @@
 'use strict';
 
+let conventionalChangelogAngularPromise = require('conventional-changelog-angular');
 let compareFunc = require('compare-func');
 let Q = require('q');
 let readFile = Q.denodeify(require('fs').readFile);
@@ -7,16 +8,11 @@ let resolve = require('path').resolve;
 
 let parserOpts = {
   headerPattern: /^(\w*)(?:\((.*)\))?\: (.*)$/,
-  headerCorrespondence: [
-    'type',
-    'scope',
-    'subject',
-  ],
+  headerCorrespondence: ['type', 'scope', 'subject'],
   noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES'],
   revertPattern: /^revert:\s([\s\S]*?)\s*This reverts commit (\w*)\./,
-  revertCorrespondence: ['header', 'hash'],
+  revertCorrespondence: ['header', 'hash']
 };
-
 
 /**
  * A commit object included the following attributes:
@@ -35,8 +31,8 @@ let parserOpts = {
  *     hash: '83dd017afaf4d903868d6646aff33db084956407',
  *     gitTags: '',
  *     committerDate: '2018-01-16',
- *     committer: 'Jose Calero',
- *     committerEmail: 'Calero.Jose@abc.net.au'
+ *     committer: 'Jose',
+ *     committerEmail: 'Calero.Jose@'
  *   }
  */
 let writerOpts = {
@@ -79,10 +75,14 @@ let writerOpts = {
       commit.hash = commit.hash.substring(0, 7);
     }
 
-    const issueUrl = context.packageData.issues && context.packageData.issues.url;
+    const issueUrl =
+      context.packageData.issues && context.packageData.issues.url;
 
     if (typeof commit.scope === 'string') {
-      commit.scope = commit.scope.replace(/#?([a-zA-Z0-9\-]+)/g, function(_, issue) {
+      commit.scope = commit.scope.replace(/#?([a-zA-Z0-9\-]+)/g, function(
+        _,
+        issue
+      ) {
         issues.push(issue);
         return formatIssue(issueUrl, issue);
       });
@@ -90,8 +90,8 @@ let writerOpts = {
 
     // remove references that already appear in the scope
     commit.references = commit.references
-      .filter((reference) => issues.indexOf(reference.issue) === -1)
-      .map((reference) => formatIssue(issueUrl, reference.issue))
+      .filter(reference => issues.indexOf(reference.issue) === -1)
+      .map(reference => formatIssue(issueUrl, reference.issue))
       .join(', ');
 
     return commit;
@@ -100,7 +100,7 @@ let writerOpts = {
   commitGroupsSort: 'title',
   commitsSort: ['scope', 'subject'],
   noteGroupsSort: 'title',
-  notesSort: compareFunc,
+  notesSort: compareFunc
 };
 
 module.exports = Q.all([
@@ -108,21 +108,29 @@ module.exports = Q.all([
   readFile(resolve(__dirname, 'templates/header.hbs'), 'utf-8'),
   readFile(resolve(__dirname, 'templates/commit.hbs'), 'utf-8'),
   readFile(resolve(__dirname, 'templates/footer.hbs'), 'utf-8'),
-])
-  .spread(function(template, header, commit, footer) {
-    writerOpts.mainTemplate = template;
-    writerOpts.headerPartial = header;
-    writerOpts.commitPartial = commit;
-    writerOpts.footerPartial = footer;
+  conventionalChangelogAngularPromise
+]).spread(function(
+  template,
+  header,
+  commit,
+  footer,
+  conventionalChangelogAngular
+) {
+  writerOpts.mainTemplate = template;
+  writerOpts.headerPartial = header;
+  writerOpts.commitPartial = commit;
+  writerOpts.footerPartial = footer;
 
-    return {
-      parserOpts: parserOpts,
-      writerOpts: writerOpts,
-      gitRawCommitsOpts: {
-        format: '%B%n-hash-%n%H%n-gitTags-%n%d%n-committerDate-%n%ci%n-committer-%n%cn%n-committerEmail-%n%ce'
-      }
-    };
-  });
+  return {
+    recommendedBumpOpts: conventionalChangelogAngular.recommendedBumpOpts,
+    parserOpts: parserOpts,
+    writerOpts: writerOpts,
+    gitRawCommitsOpts: {
+      format:
+        '%B%n-hash-%n%H%n-gitTags-%n%d%n-committerDate-%n%ci%n-committer-%n%cn%n-committerEmail-%n%ce'
+    }
+  };
+});
 
 /**
  * Formats issues using the issueURL as the prefix of the complete issue URL
